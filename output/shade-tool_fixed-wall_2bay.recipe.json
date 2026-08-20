@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "name": "shade-tool-fixed-wall-2bay",
+  "metadata": {
+    "forward": "+Z",
+    "groundY": 0,
+    "groundTolerance": 0.001
+  },
+  "steps": [
+    {
+      "op": "group",
+      "name": "shade_pivot"
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "base-plinth",
+      "parent": "shade_pivot",
+      "size": [2.8, 0.28, 0.55],
+      "position": [0, 0.14, 0],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "base-plinth",
+      "width": 0.045,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "lower-transition",
+      "parent": "shade_pivot",
+      "size": [2.7, 0.1, 0.49],
+      "position": [0, 0.33, 0],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "lower-transition",
+      "width": 0.03,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "main-body",
+      "parent": "shade_pivot",
+      "size": [2.55, 0.89, 0.42],
+      "position": [0, 0.795, -0.035],
+      "color": "#d4d1c9",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "panel-left-cutter",
+      "parent": "shade_pivot",
+      "size": [1.02, 0.68, 0.1],
+      "position": [-0.58, 0.795, 0.18],
+      "color": "#ffffff",
+      "shading": "flat"
+    },
+    {
+      "op": "boolean",
+      "operation": "difference",
+      "target": "main-body",
+      "cutter": "panel-left-cutter",
+      "name": "main-body-left-recess"
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "panel-right-cutter",
+      "parent": "shade_pivot",
+      "size": [1.02, 0.68, 0.1],
+      "position": [0.58, 0.795, 0.18],
+      "color": "#ffffff",
+      "shading": "flat"
+    },
+    {
+      "op": "boolean",
+      "operation": "difference",
+      "target": "main-body-left-recess",
+      "cutter": "panel-right-cutter",
+      "name": "main-body-recessed"
+    },
+    {
+      "op": "bevel",
+      "target": "main-body-recessed",
+      "width": 0.025,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "left-panel-inset",
+      "parent": "shade_pivot",
+      "size": [0.92, 0.59, 0.035],
+      "position": [-0.58, 0.795, 0.145],
+      "color": "#bdbcb8",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "left-panel-inset",
+      "width": 0.035,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "right-panel-inset",
+      "parent": "shade_pivot",
+      "size": [0.92, 0.59, 0.035],
+      "position": [0.58, 0.795, 0.145],
+      "color": "#bdbcb8",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "right-panel-inset",
+      "width": 0.035,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "left-column-shaft",
+      "parent": "shade_pivot",
+      "size": [0.14, 0.66, 0.11],
+      "position": [-1.16, 0.795, 0.205],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "left-column-shaft",
+      "width": 0.015,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "center-column-shaft",
+      "parent": "shade_pivot",
+      "size": [0.14, 0.66, 0.11],
+      "position": [0, 0.795, 0.205],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "center-column-shaft",
+      "width": 0.015,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "right-column-shaft",
+      "parent": "shade_pivot",
+      "size": [0.14, 0.66, 0.11],
+      "position": [1.16, 0.795, 0.205],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "right-column-shaft",
+      "width": 0.015,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "left-column-foot",
+      "parent": "shade_pivot",
+      "size": [0.25, 0.15, 0.13],
+      "position": [-1.16, 0.405, 0.2],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "left-column-foot",
+      "width": 0.035,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "center-column-foot",
+      "parent": "shade_pivot",
+      "size": [0.25, 0.15, 0.13],
+      "position": [0, 0.405, 0.2],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "center-column-foot",
+      "width": 0.035,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "right-column-foot",
+      "parent": "shade_pivot",
+      "size": [0.25, 0.15, 0.13],
+      "position": [1.16, 0.405, 0.2],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "right-column-foot",
+      "width": 0.035,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "left-column-capital",
+      "parent": "shade_pivot",
+      "size": [0.25, 0.15, 0.13],
+      "position": [-1.16, 1.18, 0.2],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "left-column-capital",
+      "width": 0.035,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "center-column-capital",
+      "parent": "shade_pivot",
+      "size": [0.25, 0.15, 0.13],
+      "position": [0, 1.18, 0.2],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "center-column-capital",
+      "width": 0.035,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "right-column-capital",
+      "parent": "shade_pivot",
+      "size": [0.25, 0.15, 0.13],
+      "position": [1.16, 1.18, 0.2],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "right-column-capital",
+      "width": 0.035,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "top-collar",
+      "parent": "shade_pivot",
+      "size": [2.7, 0.1, 0.49],
+      "position": [0, 1.22, 0],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "bevel",
+      "target": "top-collar",
+      "width": 0.03,
+      "segments": 1
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "top-rim",
+      "parent": "shade_pivot",
+      "size": [2.8, 0.26, 0.55],
+      "position": [0, 1.37, 0],
+      "color": "#dedbd2",
+      "roughness": 1,
+      "metalness": 0,
+      "shading": "flat"
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "top-opening-cutter",
+      "parent": "shade_pivot",
+      "size": [2.46, 0.24, 0.29],
+      "position": [0, 1.46, 0],
+      "color": "#ffffff",
+      "shading": "flat"
+    },
+    {
+      "op": "boolean",
+      "operation": "difference",
+      "target": "top-rim",
+      "cutter": "top-opening-cutter",
+      "name": "top-rim-with-opening"
+    },
+    {
+      "op": "bevel",
+      "target": "top-rim-with-opening",
+      "width": 0.03,
+      "segments": 1
+    }
+  ]
+}
