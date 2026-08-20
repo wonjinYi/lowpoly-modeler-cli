@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createCube, createIcosphere, createTube } from '../src/geometry/primitives.js';
-import { bevelMesh, extrudeFaces, getMeshBounds, selectFaces, weldMesh } from '../src/geometry/operations.js';
+import { bevelMesh, extrudeFaces, getMeshBounds, mergeCoplanarFaces, selectFaces, weldMesh } from '../src/geometry/operations.js';
 
 describe('mesh generation and editing', () => {
   it('creates the standard subdivision-2 icosphere', () => {
@@ -30,5 +30,17 @@ describe('mesh generation and editing', () => {
     const tube = createTube('material-1', [[0, 0, 0], [0, 1, 0], [0.5, 1.5, 0]], 0.1, 6, true);
     expect(Object.keys(tube.faces)).toHaveLength(14);
     expect(Object.keys(weldMesh(tube, 0.00001).vertices)).toHaveLength(18);
+  });
+
+  it('merges a triangulated coplanar quad back into an editable polygon', () => {
+    const cube = createCube('material-1');
+    const topId = selectFaces(cube, 'top')[0]!;
+    const top = cube.faces[topId]!;
+    const [a, b, c, d] = top.vertexIds;
+    cube.faces[topId] = { ...top, vertexIds: [a!, b!, c!] };
+    cube.faces.extra = { id: 'extra', materialId: top.materialId, vertexIds: [a!, c!, d!] };
+    const merged = mergeCoplanarFaces(cube);
+    expect(Object.keys(merged.faces)).toHaveLength(6);
+    expect(selectFaces(merged, 'top')).toHaveLength(1);
   });
 });

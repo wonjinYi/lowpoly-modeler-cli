@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { bakeDocumentWorldTransforms, createDocument, nextMaterialId, nextNodeId } from '../document.js';
 import type { MaterialData, MeshData, MeshFace, MeshVertex, SceneDocument, SceneNode, Transform } from '../types.js';
 import { ROOT_NODE_ID } from '../types.js';
+import { mergeCoplanarFaces, weldMesh } from '../geometry/operations.js';
 
 export interface GlbPayloadInfo {
   byteLength: number;
@@ -12,10 +13,17 @@ export interface GlbPayloadInfo {
   meshCount: number;
   nodeCount: number;
   materialCount: number;
+  vertexCount: number;
+  triangleCount: number;
 }
 
 interface GltfJson {
-  images?: unknown[]; textures?: unknown[]; meshes?: unknown[]; nodes?: unknown[]; materials?: unknown[];
+  images?: unknown[];
+  textures?: unknown[];
+  meshes?: { primitives?: { attributes?: { POSITION?: number }; indices?: number; mode?: number }[] }[];
+  nodes?: unknown[];
+  materials?: unknown[];
+  accessors?: { count?: number }[];
 }
 
 class NodeFileReader {
@@ -51,7 +59,16 @@ function readGlbJson(arrayBuffer: ArrayBuffer): GltfJson {
 
 export function inspectGlbPayload(arrayBuffer: ArrayBuffer): GlbPayloadInfo {
   const json = readGlbJson(arrayBuffer);
-  return { byteLength: arrayBuffer.byteLength, imageCount: json.images?.length ?? 0, textureCount: json.textures?.length ?? 0, meshCount: json.meshes?.length ?? 0, nodeCount: json.nodes?.length ?? 0, materialCount: json.materials?.length ?? 0 };
+  const primitives = (json.meshes ?? []).flatMap((mesh) => mesh.primitives ?? []);
+  const vertexCount = primitives.reduce((sum, primitive) => sum + (json.accessors?.[primitive.attributes?.POSITION ?? -1]?.count ?? 0), 0);
+  const triangleCount = primitives.reduce((sum, primitive) => {
+    if (primitive.mode !== undefined && primitive.mode !== 4) return sum;
+    const count = primitive.indices !== undefined
+      ? json.accessors?.[primitive.indices]?.count ?? 0
+      : json.accessors?.[primitive.attributes?.POSITION ?? -1]?.count ?? 0;
+    return sum + Math.floor(count / 3);
+  }, 0);
+  return { byteLength: arrayBuffer.byteLength, imageCount: json.images?.length ?? 0, textureCount: json.textures?.length ?? 0, meshCount: json.meshes?.length ?? 0, nodeCount: json.nodes?.length ?? 0, materialCount: json.materials?.length ?? 0, vertexCount, triangleCount };
 }
 
 function toTransform(object: THREE.Object3D): Transform {
@@ -83,7 +100,10 @@ function geometryToMeshData(document: SceneDocument, geometry: THREE.BufferGeome
     if (!sourceMaterial) throw new Error(`Mesh "${prefix}" has no material.`);
     const id = `${prefix}_f${offset / 3 + 1}`; faces[id] = { id, materialId: materialFromThree(document, sourceMaterial, knownMaterials), vertexIds: indexes.map((entry) => `${prefix}_v${entry + 1}`) };
   }
-  return { vertices, faces };
+  // Flat-shaded GLBs duplicate corners to store hard normals. Rejoin only exact
+  // coincident positions so imported geometry remains editable; export will
+  // duplicate the corners again when its material requests flat shading.
+  return mergeCoplanarFaces(weldMesh({ vertices, faces }, 0));
 }
 
 function objectName(object: THREE.Object3D, fallback: string): string { return object.name.trim() || fallback; }
@@ -93,10 +113,11 @@ export async function importGlb(arrayBuffer: ArrayBuffer, name = 'imported-asset
   if (payload.imageCount || payload.textureCount) throw new Error(`Textured GLB input is not supported (${payload.textureCount} texture(s), ${payload.imageCount} image(s)). Remove textures before editing.`);
   const loader = new GLTFLoader(); const gltf = await loader.parseAsync(arrayBuffer, '');
   const document = createDocument(name); const knownMaterials = new Map<THREE.Material, string>();
-  const exportedRoot = gltf.scene.children.length === 1 && gltf.scene.children[0]?.name.toLowerCase() === 'asset_root' ? gltf.scene.children[0] : undefined;
+  const rootCandidate = gltf.scene.children.length === 1 ? gltf.scene.children[0] : undefined;
+  const exportedRoot = rootCandidate && !(rootCandidate instanceof THREE.Mesh) && rootCandidate.name.toLowerCase() === 'asset_root' ? rootCandidate : undefined;
   const sourceRoot = exportedRoot ?? gltf.scene; const rootNode = document.nodes[ROOT_NODE_ID]!; rootNode.name = objectName(sourceRoot, 'asset_root'); rootNode.transform = toTransform(sourceRoot);
-  const extras = sourceRoot.userData.lowpolyAsset as Partial<SceneDocument['metadata']> | undefined;
-  if (extras) { document.metadata.forwardConfirmed = Boolean(extras.forwardConfirmed); document.metadata.groundReferenceY = Number.isFinite(extras.groundReferenceY) ? extras.groundReferenceY! : 0; document.metadata.groundContactTolerance = Number.isFinite(extras.groundContactTolerance) ? extras.groundContactTolerance! : 0.001; }
+  const extras = sourceRoot.userData.lowpolyAsset as (Partial<SceneDocument['metadata']> & { name?: string }) | undefined;
+  if (extras) { document.name = typeof extras.name === 'string' && extras.name.trim() ? extras.name : document.name; document.metadata.forwardConfirmed = Boolean(extras.forwardConfirmed); document.metadata.groundReferenceY = Number.isFinite(extras.groundReferenceY) ? extras.groundReferenceY! : 0; document.metadata.groundContactTolerance = Number.isFinite(extras.groundContactTolerance) ? extras.groundContactTolerance! : 0.001; }
   const visit = (object: THREE.Object3D, parentId: string): void => {
     const id = object.userData.lowpolyNodeId && !document.nodes[String(object.userData.lowpolyNodeId)] ? String(object.userData.lowpolyNodeId) : nextNodeId(document, object instanceof THREE.Mesh ? 'mesh' : 'group');
     const base = { id, name: objectName(object, id), parentId, hidden: !object.visible, transform: toTransform(object) };
@@ -145,7 +166,7 @@ function disposeObject(object: THREE.Object3D): void {
 
 export async function exportGlb(document: SceneDocument): Promise<ArrayBuffer> {
   ensureNodeFileReader(); const hasNonUnitScale = Object.values(document.nodes).some((node) => node.transform.scale.x !== 1 || node.transform.scale.y !== 1 || node.transform.scale.z !== 1); const source = hasNonUnitScale ? bakeDocumentWorldTransforms(document) : document;
-  const root = buildObject(source, source.nodes[source.rootId]!); root.userData.lowpolyAsset = { forwardConfirmed: source.metadata.forwardConfirmed, groundReferenceY: source.metadata.groundReferenceY, groundContactTolerance: source.metadata.groundContactTolerance };
+  const root = buildObject(source, source.nodes[source.rootId]!); root.userData.lowpolyAsset = { name: source.name, forwardConfirmed: source.metadata.forwardConfirmed, groundReferenceY: source.metadata.groundReferenceY, groundContactTolerance: source.metadata.groundContactTolerance };
   const exporter = new GLTFExporter();
   try {
     return await new Promise<ArrayBuffer>((resolve, reject) => exporter.parse(root, (output) => output instanceof ArrayBuffer ? resolve(output) : reject(new Error('GLTF exporter returned JSON instead of GLB.')), (error) => reject(error), { binary: true, onlyVisible: false, trs: true }));

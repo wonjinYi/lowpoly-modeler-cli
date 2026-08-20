@@ -3,7 +3,7 @@ import { addGroup, addMesh, assertUniqueName, bakeNodeScale, createDocument, cre
 import { booleanMesh } from './geometry/boolean.js';
 import { createCone, createCube, createCylinder, createIcosphere, createPlane, createSphere, createTube } from './geometry/primitives.js';
 import { applyMatrix, bendMesh, bevelMesh, combineMeshes, deleteFaces, extrudeFaces, insetFaces, mirrorMesh, resizeMesh, selectEdges, selectFaces, selectVertices, subdivideEdges, transformVertices, weldMesh, mergeSelectedVertices } from './geometry/operations.js';
-import type { GroupNode, MeshData, MeshNode, PrimitiveStep, Recipe, RecipeStep, SceneDocument, Shading, Vec3, Vec3Tuple } from './types.js';
+import type { MeshData, MeshNode, PrimitiveStep, Recipe, RecipeStep, SceneDocument, Shading, Vec3, Vec3Tuple } from './types.js';
 import { tupleToVec3 } from './types.js';
 
 const radians = (values: Vec3Tuple | undefined): Vec3 => {
@@ -30,15 +30,6 @@ function primitiveMesh(step: PrimitiveStep, materialId: string): MeshData {
   return size ? resizeMesh(mesh, tupleToVec3(size)) : mesh;
 }
 
-function applyGroupScale(document: SceneDocument, group: GroupNode, scale: Vec3): void {
-  const children = Object.values(document.nodes).filter((node) => node.parentId === group.id);
-  for (const child of children) {
-    child.transform.position.x *= scale.x; child.transform.position.y *= scale.y; child.transform.position.z *= scale.z;
-    if (child.type === 'mesh') bakeNodeScale(child, scale);
-    else applyGroupScale(document, child, scale);
-  }
-}
-
 function materialsForMesh(document: SceneDocument, node: MeshNode) {
   const ids = new Set(Object.values(node.mesh.faces).map((face) => face.materialId));
   return [...ids].map((id) => document.materials[id]).filter((entry) => entry !== undefined);
@@ -63,7 +54,16 @@ async function applyStep(document: SceneDocument, step: RecipeStep): Promise<voi
       if (step.translate) { const value = tupleToVec3(step.translate); node.transform.position.x += value.x; node.transform.position.y += value.y; node.transform.position.z += value.z; }
       if (step.rotation) node.transform.rotation = radians(step.rotation);
       if (step.rotate) { const value = radians(step.rotate); node.transform.rotation.x += value.x; node.transform.rotation.y += value.y; node.transform.rotation.z += value.z; }
-      if (step.scale) { const value = tupleToVec3(step.scale, 1); if (node.type === 'mesh') bakeNodeScale(node, value); else applyGroupScale(document, node, value); }
+      if (step.scale) {
+        const value = tupleToVec3(step.scale, 1);
+        if ([value.x, value.y, value.z].some((entry) => entry === 0)) throw new Error('Scale components must be non-zero.');
+        if (node.type === 'mesh') bakeNodeScale(node, value);
+        else {
+          node.transform.scale.x *= value.x;
+          node.transform.scale.y *= value.y;
+          node.transform.scale.z *= value.z;
+        }
+      }
       if (step.size) { if (node.type !== 'mesh') throw new Error('Only mesh objects can be resized.'); node.mesh = resizeMesh(node.mesh, tupleToVec3(step.size)); node.transform.scale = { x: 1, y: 1, z: 1 }; }
       return;
     }
@@ -88,7 +88,13 @@ async function applyStep(document: SceneDocument, step: RecipeStep): Promise<voi
       if (new Set(nodes.map((node) => node.id)).size !== nodes.length) throw new Error('Join targets must be different meshes.');
       for (const node of nodes) if (descendants(document, node.id).length) throw new Error(`Join target "${node.name}" cannot have children.`);
       const mesh = combineMeshes(nodes.map((node) => ({ mesh: node.mesh, matrix: worldMatrix(document, node.id) })), step.weldTolerance ?? 0);
+      const preservedMaterials = Object.fromEntries(
+        [...new Set(Object.values(mesh.faces).map((face) => face.materialId))]
+          .map((id) => [id, document.materials[id]])
+          .filter((entry): entry is [string, NonNullable<(typeof entry)[1]>] => entry[1] !== undefined),
+      );
       for (const node of nodes) removeNode(document, node.id);
+      Object.assign(document.materials, preservedMaterials);
       assertUniqueName(document, step.name); addMesh(document, step.name, mesh); pruneMaterials(document); return;
     }
     case 'boolean': {

@@ -58,11 +58,15 @@ export function resizeMesh(mesh: MeshData, size: Vec3): MeshData {
 
 export function faceNormal(mesh: MeshData, face: MeshFace): Vec3 | null {
   if (face.vertexIds.length < 3) return null;
-  const a = mesh.vertices[face.vertexIds[0]!]?.position;
-  const b = mesh.vertices[face.vertexIds[1]!]?.position;
-  const c = mesh.vertices[face.vertexIds[2]!]?.position;
-  if (!a || !b || !c) return null;
-  const normal = new THREE.Vector3(b.x - a.x, b.y - a.y, b.z - a.z).cross(new THREE.Vector3(c.x - a.x, c.y - a.y, c.z - a.z));
+  const points = face.vertexIds.map((id) => mesh.vertices[id]?.position);
+  if (points.some((point) => point === undefined)) return null;
+  const normal = new THREE.Vector3();
+  points.forEach((point, index) => {
+    const next = points[(index + 1) % points.length]!;
+    normal.x += (point!.y - next.y) * (point!.z + next.z);
+    normal.y += (point!.z - next.z) * (point!.x + next.x);
+    normal.z += (point!.x - next.x) * (point!.y + next.y);
+  });
   if (normal.lengthSq() < 1e-16) return null;
   normal.normalize(); return { x: normal.x, y: normal.y, z: normal.z };
 }
@@ -88,6 +92,72 @@ export function getEdges(mesh: MeshData): MeshEdge[] {
     });
   }
   return [...entries.values()];
+}
+
+function directedEdges(face: MeshFace): { a: string; b: string; key: string }[] {
+  return face.vertexIds.map((a, index) => {
+    const b = face.vertexIds[(index + 1) % face.vertexIds.length]!;
+    return { a, b, key: a < b ? `${a}:${b}` : `${b}:${a}` };
+  });
+}
+
+function removeCollinearVertices(mesh: MeshData, vertexIds: string[]): string[] {
+  const result = [...vertexIds]; let removed = true;
+  while (removed && result.length > 3) {
+    removed = false;
+    for (let index = 0; index < result.length; index += 1) {
+      const previous = mesh.vertices[result[(index - 1 + result.length) % result.length]!]!.position;
+      const current = mesh.vertices[result[index]!]!.position;
+      const next = mesh.vertices[result[(index + 1) % result.length]!]!.position;
+      const first = new THREE.Vector3(current.x - previous.x, current.y - previous.y, current.z - previous.z);
+      const second = new THREE.Vector3(next.x - current.x, next.y - current.y, next.z - current.z);
+      const scale = Math.max(first.length() * second.length(), 1);
+      if (first.clone().cross(second).length() <= 1e-8 * scale && first.dot(second) >= 0) {
+        result.splice(index, 1); removed = true; break;
+      }
+    }
+  }
+  return result;
+}
+
+/** Restores editable n-gons that GLB triangulation split into coplanar faces. */
+export function mergeCoplanarFaces(mesh: MeshData, normalTolerance = 0.00001): MeshData {
+  const result = cloneMesh(mesh);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const facesByEdge = new Map<string, MeshFace[]>();
+    for (const face of Object.values(result.faces)) {
+      for (const edge of directedEdges(face)) {
+        const entries = facesByEdge.get(edge.key) ?? [];
+        entries.push(face); facesByEdge.set(edge.key, entries);
+      }
+    }
+    for (const [sharedKey, pair] of facesByEdge) {
+      if (pair.length !== 2) continue;
+      const first = pair[0]!; const second = pair[1]!;
+      if (first.materialId !== second.materialId) continue;
+      const firstNormal = faceNormal(result, first); const secondNormal = faceNormal(result, second);
+      if (!firstNormal || !secondNormal || firstNormal.x * secondNormal.x + firstNormal.y * secondNormal.y + firstNormal.z * secondNormal.z < 1 - normalTolerance) continue;
+      const allEdges = [...directedEdges(first), ...directedEdges(second)];
+      const counts = new Map<string, number>();
+      allEdges.forEach((edge) => counts.set(edge.key, (counts.get(edge.key) ?? 0) + 1));
+      const boundary = allEdges.filter((edge) => counts.get(edge.key) === 1 && edge.key !== sharedKey);
+      if (boundary.length < 3) continue;
+      const byStart = new Map<string, { a: string; b: string }[]>();
+      boundary.forEach((edge) => { const entries = byStart.get(edge.a) ?? []; entries.push(edge); byStart.set(edge.a, entries); });
+      if ([...byStart.values()].some((entries) => entries.length !== 1)) continue;
+      const loop = [boundary[0]!.a]; let current = boundary[0]!.b; const used = new Set([`${boundary[0]!.a}:${boundary[0]!.b}`]);
+      while (current !== loop[0] && loop.length <= boundary.length) {
+        loop.push(current); const next = byStart.get(current)?.[0]; if (!next) break;
+        const directedKey = `${next.a}:${next.b}`; if (used.has(directedKey)) break; used.add(directedKey); current = next.b;
+      }
+      const simplified = removeCollinearVertices(result, loop);
+      if (current !== loop[0] || used.size !== boundary.length || new Set(simplified).size < 3) continue;
+      result.faces[first.id] = { ...first, vertexIds: simplified }; delete result.faces[second.id]; changed = true; break;
+    }
+  }
+  return removeUnusedVertices(result);
 }
 
 export function selectFaces(mesh: MeshData, selector: FaceSelector): string[] {
@@ -214,19 +284,33 @@ export function transformVertices(mesh: MeshData, vertexIds: string[], translate
 
 export function extrudeFaces(mesh: MeshData, faceIds: string[], distance: number, rotate?: Vec3Tuple): MeshData {
   if (distance === 0) return mesh;
-  const result = cloneMesh(mesh);
-  for (const faceId of faceIds) {
-    const sourceFace = result.faces[faceId]!; const normal = faceNormal(result, sourceFace);
-    if (!normal) continue;
-    const sourceIds = [...sourceFace.vertexIds];
-    const extrudedIds = sourceIds.map((sourceId) => {
-      const source = result.vertices[sourceId]!; const id = nextId(result.vertices, 'v');
-      result.vertices[id] = { ...source, id, normal: undefined, position: { x: source.position.x + normal.x * distance, y: source.position.y + normal.y * distance, z: source.position.z + normal.z * distance } }; return id;
-    });
-    sourceFace.vertexIds = extrudedIds;
-    sourceIds.forEach((sourceId, index) => { const next = (index + 1) % sourceIds.length; const id = nextId(result.faces, 'f'); result.faces[id] = { id, materialId: sourceFace.materialId, vertexIds: [sourceId, sourceIds[next]!, extrudedIds[next]!, extrudedIds[index]!] }; });
+  const result = cloneMesh(mesh); const selected = faceIds.map((id) => result.faces[id]).filter((face): face is MeshFace => face !== undefined);
+  const normalSums = new Map<string, THREE.Vector3>();
+  for (const face of selected) {
+    const normal = faceNormal(result, face); if (!normal) continue;
+    for (const vertexId of face.vertexIds) {
+      const sum = normalSums.get(vertexId) ?? new THREE.Vector3(); sum.add(new THREE.Vector3(normal.x, normal.y, normal.z)); normalSums.set(vertexId, sum);
+    }
   }
-  return rotate ? transformVertices(result, faceIds.flatMap((id) => result.faces[id]?.vertexIds ?? []), undefined, rotate) : result;
+  const extruded = new Map<string, string>();
+  for (const [sourceId, normal] of normalSums) {
+    const source = result.vertices[sourceId]!; const id = nextId(result.vertices, 'v'); normal.normalize();
+    result.vertices[id] = { ...source, id, normal: undefined, position: { x: source.position.x + normal.x * distance, y: source.position.y + normal.y * distance, z: source.position.z + normal.z * distance } }; extruded.set(sourceId, id);
+  }
+  const boundaryByKey = new Map<string, { a: string; b: string; materialId: string; count: number }>();
+  for (const face of selected) {
+    for (const edge of directedEdges(face)) {
+      const existing = boundaryByKey.get(edge.key);
+      if (existing) existing.count += 1;
+      else boundaryByKey.set(edge.key, { a: edge.a, b: edge.b, materialId: face.materialId, count: 1 });
+    }
+    face.vertexIds = face.vertexIds.map((id) => extruded.get(id) ?? id);
+  }
+  for (const edge of boundaryByKey.values()) {
+    if (edge.count !== 1) continue;
+    const id = nextId(result.faces, 'f'); result.faces[id] = { id, materialId: edge.materialId, vertexIds: [edge.a, edge.b, extruded.get(edge.b)!, extruded.get(edge.a)!] };
+  }
+  return rotate ? transformVertices(result, [...extruded.values()], undefined, rotate) : result;
 }
 
 export function insetFaces(mesh: MeshData, faceIds: string[], factor: number): MeshData {

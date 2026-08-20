@@ -7,7 +7,8 @@ import { compileRecipe } from './recipe.js';
 import { parseRecipe, recipeSchema } from './schema.js';
 import { exportGlb, importGlb, inspectGlbPayload, type GlbPayloadInfo } from './io/gltf.js';
 import { hasErrors, validateDocument } from './validation.js';
-import { worldBounds } from './document.js';
+import { bakeDocumentWorldTransforms, worldBounds } from './document.js';
+import { getEdges } from './geometry/operations.js';
 import type { Recipe, SceneDocument, ValidationIssue } from './types.js';
 
 const HELP = `lowpoly - deterministic low-poly recipe compiler
@@ -65,19 +66,30 @@ function summary(document: SceneDocument, payload: GlbPayloadInfo) {
       position: node.transform.position,
       rotationDegrees: { x: node.transform.rotation.x * 180 / Math.PI, y: node.transform.rotation.y * 180 / Math.PI, z: node.transform.rotation.z * 180 / Math.PI },
       scale: node.transform.scale,
-      ...(node.type === 'mesh' ? { vertices: Object.keys(node.mesh.vertices).length, faces: Object.keys(node.mesh.faces).length, materials: [...new Set(Object.values(node.mesh.faces).map((face) => document.materials[face.materialId]?.name ?? face.materialId))] } : {}),
+      ...(node.type === 'mesh' ? {
+        vertices: Object.keys(node.mesh.vertices).length,
+        faces: Object.keys(node.mesh.faces).length,
+        materials: [...new Set(Object.values(node.mesh.faces).map((face) => document.materials[face.materialId]?.name ?? face.materialId))],
+        elements: {
+          vertexIds: Object.keys(node.mesh.vertices),
+          faceIds: Object.keys(node.mesh.faces),
+          edgeIds: getEdges(node.mesh).map((edge) => edge.id),
+        },
+      } : {}),
     })),
     validation: validateDocument(document),
   };
 }
 
 async function verifyAndWrite(document: SceneDocument, output: string): Promise<void> {
-  const before = validateDocument(document); if (hasErrors(before)) { printIssues(before); throw new Error('Document contains validation errors; GLB was not written.'); }
-  const buffer = await exportGlb(document); const payload = inspectGlbPayload(buffer);
+  const hasNonUnitScale = Object.values(document.nodes).some((node) => node.transform.scale.x !== 1 || node.transform.scale.y !== 1 || node.transform.scale.z !== 1);
+  const prepared = hasNonUnitScale ? bakeDocumentWorldTransforms(document) : document;
+  const before = validateDocument(prepared); if (hasErrors(before)) { printIssues(before); throw new Error('Document contains validation errors; GLB was not written.'); }
+  const buffer = await exportGlb(prepared); const payload = inspectGlbPayload(buffer);
   if (payload.textureCount || payload.imageCount) throw new Error('Internal verification found a texture/image payload.');
-  const reopened = await importGlb(buffer, document.name); const after = validateDocument(reopened);
+  const reopened = await importGlb(buffer, prepared.name); const after = validateDocument(reopened);
   if (hasErrors(after)) { printIssues(after); throw new Error('Export round-trip validation failed.'); }
-  if (meshCount(reopened) !== meshCount(document)) throw new Error('Export round-trip changed the visible mesh count.');
+  if (meshCount(reopened) !== meshCount(prepared)) throw new Error('Export round-trip changed the visible mesh count.');
   await atomicWrite(output, new Uint8Array(buffer));
   console.log(`WROTE  ${path.resolve(output)}`); console.log(`GLB    ${payload.byteLength} bytes, ${payload.meshCount} mesh(es), ${payload.materialCount} material(s), no textures/images`);
   const warnings = before.filter((issue) => issue.severity !== 'error'); if (warnings.length) printIssues(warnings);
