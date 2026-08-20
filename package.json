@@ -1,0 +1,37 @@
+{
+  "name": "lowpoly-modeler-cli",
+  "version": "0.1.0",
+  "description": "Deterministic recipe-to-GLB low-poly modeling CLI for Codex",
+  "type": "module",
+  "bin": {
+    "lowpoly": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "manifold-3d": "^3.5.1",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "@types/three": "^0.185.0",
+    "typescript": "^6.0.0",
+    "vitest": "^4.0.0"
+  }
+}
