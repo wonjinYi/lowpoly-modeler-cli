@@ -1,64 +1,97 @@
 # Lowpoly Modeler CLI
 
-`lowpoly` compiles strict JSON recipes into texture-free, game-ready GLB assets. It is designed for a Codex workflow where an image and a natural-language request are interpreted into a reproducible recipe, then modeled deterministically without Blender or a browser runtime.
+이미지와 자연어 요청을 재현 가능한 JSON recipe로 바꾸고, 정적 저폴리 게임 에셋을 GLB로 생성·수정·검증하는 Node.js CLI입니다.
 
 ```text
-reference image + request -> Codex skill -> recipe.json -> lowpoly CLI -> validated GLB
+참고 이미지 + 자연어 요청
+→ Codex lowpoly-modeler 스킬
+→ recipe.json
+→ Lowpoly Modeler CLI
+→ 검증된 GLB
 ```
 
-## Requirements
+Blender, 브라우저 UI, React에 의존하지 않습니다. CLI 내부의 메시 연산과 Three.js GLB 입출력만 사용합니다.
 
-- Node.js 24 or newer
+## 주요 기능
+
+- Cube, Plane, Cylinder, Cone, Sphere, Faceted Icosphere 생성
+- 경로 기반 Tube 생성
+- Join, Weld, Boolean Difference/Union/Intersection
+- Mirror, Bend, 1-segment Bevel
+- Face Extrude/Inset/Delete, Edge Subdivide, Vertex Transform/Merge
+- 기존 GLB의 이름·재질·계층·메시 편집
+- `shade_pivot`, Ground, `+Y Up`, `+Z Forward` 게임 구조
+- 모든 출력 노드의 scale을 `1, 1, 1`로 bake
+- GLB export 후 재오픈 검증
+- texture/image payload가 없는 GLB 보장
+- Codex 프로젝트 로컬 스킬 포함
+
+## 요구 사항
+
+- Node.js 24 이상
 - npm
 
-## Setup
+## 빠른 시작
 
 ```powershell
 npm install
 npm run build
-npm link
+
+# 예제 벽 생성
+node dist/cli.js build examples/wall.recipe.json --out output/wall.glb
+
+# 결과 검증
+node dist/cli.js validate output/wall.glb
+
+# 계층, 크기, 오브젝트 및 요소 ID 확인
+node dist/cli.js inspect output/wall.glb --json
 ```
 
-`npm link` is optional. Without it, replace `lowpoly` with `node dist/cli.js` in the commands below.
-
-## Commands
+전역 `lowpoly` 명령을 사용하고 싶다면 빌드 후 `npm link`를 한 번 실행합니다.
 
 ```powershell
-# Build a new asset.
+npm link
 lowpoly build examples/wall.recipe.json --out output/wall.glb
-
-# Edit an existing texture-free GLB.
-lowpoly edit output/wall.glb examples/edit-wall.recipe.json --out output/wall-edited.glb
-
-# Validate game-asset invariants and GLB payloads.
-lowpoly validate output/wall.glb
-
-# Inspect hierarchy, object ids, bounds, materials, and mesh counts.
-lowpoly inspect output/wall.glb --json
-
-# Emit the authoritative recipe JSON Schema.
-lowpoly schema --out schemas/recipe.schema.json
 ```
 
-`validate --strict` also treats warnings as a failing exit status. All commands use non-zero exit codes for errors.
+## Codex에서 이미지로 만들기
 
-## Recipe conventions
+이 프로젝트를 Codex 작업 폴더로 연 뒤 이미지를 첨부하고 다음과 같이 요청합니다.
 
-- Coordinates are right-handed with `+Y` up and `+Z` forward.
-- Positions, sizes, radii, heights, and modeling distances use the asset's chosen world unit.
-- All rotations and bend angles are expressed in **degrees**.
-- Primitive size is baked into vertex positions. Exported node scales stay at `1, 1, 1`.
-- Icospheres default to `subdivisions: 2` and flat shading.
-- Materials are solid-color PBR materials. Textures and embedded images are intentionally excluded.
-- Object names must be unique for reliable recipe targeting. Imported duplicate names must be targeted by the ids shown by `inspect --json`.
+```text
+$lowpoly-modeler 이 이미지를 단색 저폴리 게임 에셋으로 만들어줘.
+높이는 2m 정도로 보고, 바닥은 Y=0에 맞추고, 정면은 +Z로 해줘.
+GLB와 수정 가능한 recipe를 같이 남겨줘.
+```
 
-Minimal example:
+프로젝트 로컬 스킬은 [.agents/skills/lowpoly-modeler/SKILL.md](.agents/skills/lowpoly-modeler/SKILL.md)에 있습니다. 스킬은 이미지를 형태별 부품으로 분해하고, recipe 작성 → build/edit → validate → inspect 순서로 결과를 확인합니다.
+
+한 장의 이미지에서 보이지 않는 뒷면, 깊이, 실제 크기는 추정이 필요합니다. 중요한 치수나 회전축이 있다면 요청에 함께 적는 것이 좋습니다.
+
+## 명령
+
+| 명령 | 용도 |
+| --- | --- |
+| `lowpoly build <recipe> --out <glb>` | 새 GLB 생성 |
+| `lowpoly edit <source.glb> <recipe> --out <glb>` | 기존 GLB 수정 |
+| `lowpoly validate <glb>` | 게임 에셋 및 GLB payload 검증 |
+| `lowpoly validate <glb> --strict` | warning도 실패 exit code로 처리 |
+| `lowpoly inspect <glb> --json` | 계층, bounds, 재질, Vertex/Face/Edge ID 확인 |
+| `lowpoly schema [--out <json>]` | 현재 CLI의 recipe JSON Schema 출력 |
+
+`npm link`를 사용하지 않았다면 `lowpoly` 대신 `node dist/cli.js`를 사용합니다.
+
+## 최소 Recipe
 
 ```json
 {
   "version": 1,
   "name": "faceted-orb",
-  "metadata": { "forward": "+Z", "groundY": 0 },
+  "metadata": {
+    "forward": "+Z",
+    "groundY": 0,
+    "groundTolerance": 0.001
+  },
   "steps": [
     { "op": "group", "name": "shade_pivot" },
     {
@@ -69,61 +102,56 @@ Minimal example:
       "radius": 0.8,
       "subdivisions": 2,
       "position": [0, 0.8, 0],
-      "shading": "flat",
-      "color": "#d9765e"
+      "color": "#d9765e",
+      "shading": "flat"
     }
   ]
 }
 ```
 
-The strict schema is available at [schemas/recipe.schema.json](schemas/recipe.schema.json). Unknown fields and unsupported values are rejected instead of being silently ignored.
+좌표계는 `+Y Up`, `+Z Forward`이며 모든 회전값과 Bend 각도는 **degree**입니다. 크기와 scale은 geometry에 bake되어 최종 GLB의 노드 scale은 `1, 1, 1`입니다.
 
-## Supported modeling operations
+Recipe는 strict schema로 검사합니다. 오타나 지원하지 않는 필드는 조용히 무시하지 않고 오류로 처리합니다. 스키마 원본은 [schemas/recipe.schema.json](schemas/recipe.schema.json)입니다.
 
-| Operation | Purpose |
-| --- | --- |
-| `primitive` | Cube, plane, cylinder, cone, UV sphere, or faceted icosphere |
-| `tube` | Capped or open low-poly tube along a point path |
-| `group`, `parent` | Hierarchy and `shade_pivot` construction |
-| `transform` | Position/rotation changes and baked scale/size changes |
-| `material` | Solid color, roughness, metalness, opacity, flat/smooth shading |
-| `join`, `weld` | Combine objects and merge nearby vertices |
-| `boolean` | Difference, union, or intersection through `manifold-3d` |
-| `mirror`, `bend`, `bevel` | Geometry-level shape operations; bevel currently uses one low-poly segment |
-| `extrude`, `inset`, `delete_faces` | Face editing by ids or directional selectors |
-| `subdivide` | Split selected edge boundaries at their midpoints |
-| `transform_vertices`, `merge_vertices` | Vertex editing by ids or all vertices |
-| `rename`, `delete`, `ground` | Object and game-layout operations |
+## 예제
 
-Directional face selectors are `top`, `bottom`, `front`, `back`, `left`, and `right`. Explicit face, edge, and vertex ids can be obtained with programmatic inspection of the editable document; GLB editing targets objects by the ids emitted by `inspect --json`.
+- [2칸 벽](examples/wall.recipe.json)
+- [각진 Icosphere](examples/faceted-orb.recipe.json)
+- [사탕 지팡이 Tube](examples/candy-cane.recipe.json)
+- [분수](examples/fountain.recipe.json)
+- [Boolean Difference](examples/boolean-cut.recipe.json)
+- [기존 벽 수정](examples/edit-wall.recipe.json)
 
-## Validation guarantees
+## 검증 범위
 
-Every `build` and `edit` operation validates before export, writes a binary GLB, reopens it, and validates again before writing the requested file. The checks cover:
+`build`와 `edit`는 출력 전에 문서를 검사하고, GLB를 만든 뒤 다시 열어 한 번 더 검사합니다.
 
-- valid geometry and material references;
-- finite transforms and unit node scales;
-- hierarchy integrity;
-- ground contact and orientation metadata;
-- visible mesh preservation after GLB round-trip;
-- absence of GLB texture and image payloads.
+- geometry 및 material 참조
+- 유한한 transform과 unit scale
+- hierarchy 무결성
+- Ground와 방향 메타데이터
+- export 전후 visible mesh 수
+- texture/image payload 부재
+- flat-shading hard normal과 편집 가능한 저폴리 topology
 
-Warnings such as a missing `shade_pivot` are reported without blocking a normal export. Geometry and payload errors block output.
+## 문서
 
-## Codex image workflow
+자세한 설치, 이미지 요청법, 모든 recipe 연산, 기존 GLB 수정, 오류 해결 방법은 [USER_GUIDE.md](USER_GUIDE.md)를 참고하세요.
 
-The project-local skill is in [.agents/skills/lowpoly-modeler/SKILL.md](.agents/skills/lowpoly-modeler/SKILL.md). In Codex, attach a reference image and ask for a static low-poly GLB. The skill decomposes the image into supported primitives and geometry operations, records assumptions for hidden surfaces, writes a recipe, builds it, validates it, and returns both the recipe and GLB.
+## 범위 밖
 
-Single images do not reveal exact depth, hidden surfaces, or real-world scale. The skill uses stable low-poly assumptions unless those unknowns materially affect gameplay dimensions or topology.
+이 도구는 **정적·단색·저폴리 게임 소품** 제작용입니다. 다음 기능은 제공하지 않습니다.
 
-## Scope
+- 텍스처가 포함된 GLB 편집
+- UV 베이킹과 텍스처 페인팅
+- 리깅과 애니메이션
+- 스컬프팅과 리토폴로지
+- 포토리얼 모델링과 복잡한 유기체 제작
 
-This CLI targets static, solid-color, low-poly game props. It does not provide rigging, animation editing, texture painting, UV baking, retopology, sculpting, or photogrammetry. Textured input GLBs are rejected with a clear diagnostic.
-
-## Development
+## 개발 및 검증
 
 ```powershell
 npm run check
 ```
 
-This runs strict TypeScript checking, emits the CLI, and runs unit and GLB round-trip integration tests.
+Strict TypeScript 검사, CLI 빌드, 단위 테스트 및 GLB round-trip 통합 테스트를 실행합니다.
