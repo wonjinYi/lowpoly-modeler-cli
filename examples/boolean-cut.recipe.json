@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "name": "boolean-cut-demo",
+  "metadata": { "forward": "+Z", "groundY": 0 },
+  "steps": [
+    { "op": "group", "name": "shade_pivot" },
+    { "op": "primitive", "kind": "cube", "name": "block", "parent": "shade_pivot", "size": [2, 2, 2], "position": [0, 1, 0], "color": "#d8c7a3" },
+    { "op": "primitive", "kind": "cylinder", "name": "cutter", "parent": "shade_pivot", "radius": 0.55, "height": 3, "segments": 12, "position": [0, 1, 0], "color": "#cc3344" },
+    { "op": "boolean", "operation": "difference", "target": "block", "cutter": "cutter", "name": "cut-block" }
+  ]
+}

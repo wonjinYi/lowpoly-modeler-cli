@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "name": "faceted-orb",
+  "metadata": { "forward": "+Z", "groundY": 0 },
+  "steps": [
+    { "op": "group", "name": "shade_pivot" },
+    {
+      "op": "primitive",
+      "kind": "icosphere",
+      "name": "faceted-orb",
+      "parent": "shade_pivot",
+      "radius": 0.8,
+      "subdivisions": 2,
+      "shading": "flat",
+      "color": "#d9765e",
+      "position": [0, 0.8, 0]
+    }
+  ]
+}

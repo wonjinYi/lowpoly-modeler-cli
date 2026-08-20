@@ -2,6 +2,7 @@
 import { parseArgs } from 'node:util';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { compileRecipe } from './recipe.js';
 import { parseRecipe, recipeSchema } from './schema.js';
 import { exportGlb, importGlb, inspectGlbPayload, type GlbPayloadInfo } from './io/gltf.js';
@@ -123,4 +124,6 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
   }
 }
 
-runCli().catch((error) => { console.error(`ERROR  ${error instanceof Error ? error.message : String(error)}`); process.exitCode = 1; });
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCli().catch((error) => { console.error(`ERROR  ${error instanceof Error ? error.message : String(error)}`); process.exitCode = 1; });
+}

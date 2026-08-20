@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "name": "fixed-wall-2-bay-edited",
+  "metadata": { "forward": "+Z", "groundY": 0 },
+  "steps": [
+    { "op": "rename", "target": "center-column", "name": "middle-column" },
+    { "op": "material", "target": "middle-column", "color": "#d4b483" },
+    { "op": "transform", "target": "right-column", "translate": [0.25, 0, 0] }
+  ]
+}

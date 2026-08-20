@@ -1,5 +1,7 @@
 # Lowpoly CLI — 인수인계 및 개발계획
 
+> 구현 상태(2026-08-20): 아래 계획은 `lowpoly-modeler-cli`에 구현되었다. `build`, `edit`, `validate`, `inspect`, `schema` 명령과 프로젝트 로컬 Codex 스킬, 자동 GLB round-trip 테스트를 제공한다. 현재 의도적으로 제외된 범위는 텍스처 입력 편집, 리깅, 애니메이션, UV 베이킹, 리토폴로지다.
+
 ## 1. 목표
 
 Codex가 자연어 요청을 구조화된 recipe JSON으로 작성하면, Node.js 기반 CLI가 실제 저폴리 메시를 생성·수정·검증하여 GLB로 저장한다.
@@ -73,21 +75,21 @@ lowpoly validate wall.glb
 
 ### 6.1 새 모델 생성
 
-- [ ] Cube, Cylinder, Cone, Icosphere
-- [ ] 이름, 크기, 위치, 회전, 단색 material
-- [ ] low-poly segment 수 지정
-- [ ] GLB 저장
-- [ ] Object scale을 geometry에 bake해 최종 scale을 `1, 1, 1`로 유지
+- [x] Cube, Cylinder, Cone, Icosphere
+- [x] 이름, 크기, 위치, 회전, 단색 material
+- [x] low-poly segment 수 지정
+- [x] GLB 저장
+- [x] Object scale을 geometry에 bake해 최종 scale을 `1, 1, 1`로 유지
 
 ### 6.2 면이 많은 각진 구
 
 완전히 매끈한 Sphere가 아니라, 삼각형 면이 보이는 **Faceted Icosphere**를 표준 구 Primitive로 둔다.
 
-- [ ] `subdivisions` 0~3 지원
-- [ ] 기본값 `subdivisions: 2`
-- [ ] 기본값 `flatShading: true`
-- [ ] GLB export/reopen 뒤에도 hard normal과 각진 면 표현 유지
-- [ ] Smooth shading은 명시적으로 요청할 때만 적용
+- [x] `subdivisions` 0~3 지원
+- [x] 기본값 `subdivisions: 2`
+- [x] 기본값 `flatShading: true`
+- [x] GLB export/reopen 뒤에도 hard normal과 각진 면 표현 유지
+- [x] Smooth shading은 명시적으로 요청할 때만 적용
 
 ```json
 {
@@ -103,34 +105,34 @@ lowpoly validate wall.glb
 
 ### 6.3 조립과 병합
 
-- [ ] 여러 Primitive 조립
-- [ ] `join`: 여러 object를 하나의 mesh로 결합
-- [ ] `weld`: 가까운 vertex 병합
-- [ ] Boolean Difference / Union / Intersection
-- [ ] 이름으로 target object를 지정
+- [x] 여러 Primitive 조립
+- [x] `join`: 여러 object를 하나의 mesh로 결합
+- [x] `weld`: 가까운 vertex 병합
+- [x] Boolean Difference / Union / Intersection
+- [x] 이름으로 target object를 지정
 
 ### 6.4 곡선과 부드러운 형태
 
 `Smooth Shading`은 빛 표현만 부드럽게 할 뿐 실루엣을 곡선으로 만들지 않는다. 실제 곡선에는 geometry 연산이 필요하다.
 
-- [ ] Bevel: 모서리를 둥글게
-- [ ] Bend: 메시를 일정한 호로 굽힘
-- [ ] Tube/Path: 점들을 따라 저폴리 관 생성
-- [ ] Face Extrude + Rotate: 끝면을 밀고 꺾어 갈고리·캔디 케인·줄기 생성
-- [ ] Flat / Smooth shading
+- [x] Bevel: 모서리를 둥글게(저폴리 1 segment)
+- [x] Bend: 메시를 일정한 호로 굽힘
+- [x] Tube/Path: 점들을 따라 저폴리 관 생성
+- [x] Face Extrude + Rotate: 끝면을 밀고 꺾어 갈고리·캔디 케인·줄기 생성
+- [x] Flat / Smooth shading
 
 ### 6.5 GLB 수정과 게임 구조
 
-- [ ] GLB import
-- [ ] hierarchy와 material 유지
-- [ ] Object 삭제·이름 변경·transform
-- [ ] Vertex / Edge / Face 선택 및 편집
-- [ ] Extrude, Inset, Bevel, Subdivide, Merge
-- [ ] Group / hierarchy
-- [ ] `shade_pivot` 생성·배치·parenting
-- [ ] Ground 정렬, `+Y Up`, `+Z Forward` 확인
-- [ ] geometry, scale, material, texture 참조 검증
-- [ ] 수정 뒤 GLB export
+- [x] GLB import
+- [x] hierarchy와 material 유지
+- [x] Object 삭제·이름 변경·transform
+- [x] Vertex / Edge / Face 선택 및 편집
+- [x] Extrude, Inset, Bevel, Subdivide, Merge
+- [x] Group / hierarchy
+- [x] `shade_pivot` 생성·배치·parenting
+- [x] Ground 정렬, `+Y Up`, `+Z Forward` 확인
+- [x] geometry, scale, material, texture 참조 검증(텍스처 포함 입력은 진단 후 거부)
+- [x] 수정 뒤 GLB export
 
 ## 7. Recipe 예시
 
@@ -168,37 +170,37 @@ lowpoly validate wall.glb
 
 ### Phase 1 — 생성 기반
 
-- [ ] CLI 프로젝트 초기화
-- [ ] recipe parser와 schema validation
-- [ ] Primitive, transform, 색상, baked size
-- [ ] GLB export와 Node 파일 저장
-- [ ] Cube/Cylinder/Cone/Faceted Icosphere
-- [ ] texture/image 없는 GLB 검사
-- [ ] 2칸 벽 recipe와 자동 테스트
+- [x] CLI 프로젝트 초기화
+- [x] recipe parser와 schema validation
+- [x] Primitive, transform, 색상, baked size
+- [x] GLB export와 Node 파일 저장
+- [x] Cube/Cylinder/Cone/Faceted Icosphere
+- [x] texture/image 없는 GLB 검사
+- [x] 2칸 벽 recipe와 자동 테스트
 
 ### Phase 2 — 형태 만들기
 
-- [ ] join / weld
-- [ ] Boolean
-- [ ] Mirror
-- [ ] Bevel
-- [ ] Bend
-- [ ] Tube/Path
-- [ ] Flat/Smooth shading
+- [x] join / weld
+- [x] Boolean
+- [x] Mirror
+- [x] Bevel
+- [x] Bend
+- [x] Tube/Path
+- [x] Flat/Smooth shading
 
 ### Phase 3 — 수정과 게임 구조
 
-- [ ] GLB import
-- [ ] Object / Vertex / Edge / Face 편집
-- [ ] Face Extrude + Rotate
-- [ ] hierarchy / `shade_pivot`
-- [ ] validation / export round-trip test
+- [x] GLB import
+- [x] Object / Vertex / Edge / Face 편집
+- [x] Face Extrude + Rotate
+- [x] hierarchy / `shade_pivot`
+- [x] validation / export round-trip test
 
 ## 9. 완료 기준
 
-- [ ] Codex가 recipe만으로 벽·분수·사탕 지팡이·각진 장식 구체를 생성한다.
-- [ ] 기존 GLB를 읽어 불필요한 부분 삭제·병합·변형하고 다시 GLB로 저장한다.
-- [ ] 곡선은 실제 geometry로 생성되고, 단순 shading 효과에 의존하지 않는다.
-- [ ] GLB에는 texture/image payload가 없으며, game engine에서 정상 로드된다.
-- [ ] 모든 export mesh의 scale은 `1, 1, 1`이다.
-- [ ] 브라우저나 Blender를 실행하지 않는다.
+- [x] Codex가 recipe만으로 벽·분수·사탕 지팡이·각진 장식 구체를 생성한다.
+- [x] 기존 GLB를 읽어 불필요한 부분 삭제·병합·변형하고 다시 GLB로 저장한다.
+- [x] 곡선은 실제 geometry로 생성되고, 단순 shading 효과에 의존하지 않는다.
+- [x] GLB에는 texture/image payload가 없으며, export/reopen 검증을 통과한다.
+- [x] 모든 export mesh의 scale은 `1, 1, 1`이다.
+- [x] 브라우저나 Blender를 실행하지 않는다.

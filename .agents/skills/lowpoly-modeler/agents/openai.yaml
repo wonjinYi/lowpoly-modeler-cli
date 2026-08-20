@@ -1,0 +1,6 @@
+interface:
+  display_name: "Lowpoly Modeler"
+  short_description: "Build validated low-poly GLBs from images"
+  default_prompt: "Use $lowpoly-modeler to turn my reference image into a validated low-poly GLB and reusable recipe."
+policy:
+  allow_implicit_invocation: true

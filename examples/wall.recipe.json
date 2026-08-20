@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "fixed-wall-2-bay",
+  "metadata": {
+    "forward": "+Z",
+    "groundY": 0,
+    "groundTolerance": 0.001
+  },
+  "steps": [
+    { "op": "group", "name": "shade_pivot" },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "base",
+      "parent": "shade_pivot",
+      "size": [7.2, 0.5, 1.1],
+      "position": [0, 0.25, 0],
+      "color": "#eadfc9"
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "left-column",
+      "parent": "shade_pivot",
+      "size": [0.42, 2.05, 0.34],
+      "position": [-2.4, 1.525, 0.43],
+      "color": "#eadfc9"
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "center-column",
+      "parent": "shade_pivot",
+      "size": [0.42, 2.05, 0.34],
+      "position": [0, 1.525, 0.43],
+      "color": "#eadfc9"
+    },
+    {
+      "op": "primitive",
+      "kind": "cube",
+      "name": "right-column",
+      "parent": "shade_pivot",
+      "size": [0.42, 2.05, 0.34],
+      "position": [2.4, 1.525, 0.43],
+      "color": "#eadfc9"
+    },
+    { "op": "bevel", "target": "base", "width": 0.08, "segments": 1 }
+  ]
+}

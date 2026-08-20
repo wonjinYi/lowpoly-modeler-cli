@@ -30,7 +30,7 @@ const operationSchemas = [
   { properties: { op: { const: 'boolean' }, operation: { enum: ['difference', 'union', 'intersection'] }, target, cutter: target, name: target, keepCutter: { type: 'boolean' } }, required: ['op', 'operation', 'target', 'cutter'] },
   { properties: { op: { const: 'mirror' }, target, axis: { enum: ['x', 'y', 'z'] }, weldTolerance: { type: 'number', minimum: 0 } }, required: ['op', 'target', 'axis'] },
   { properties: { op: { const: 'bend' }, target, axis: { enum: ['x', 'y', 'z'] }, angle: { type: 'number' }, origin: vector }, required: ['op', 'target', 'axis', 'angle'] },
-  { properties: { op: { const: 'bevel' }, target, width: { type: 'number', exclusiveMinimum: 0 }, segments: { type: 'integer', minimum: 1, maximum: 4 } }, required: ['op', 'target', 'width'] },
+  { properties: { op: { const: 'bevel' }, target, width: { type: 'number', exclusiveMinimum: 0 }, segments: { const: 1 } }, required: ['op', 'target', 'width'] },
   { properties: { op: { const: 'extrude' }, target, faces: faceSelector, distance: { type: 'number' }, rotate: vector }, required: ['op', 'target', 'faces', 'distance'] },
   { properties: { op: { const: 'inset' }, target, faces: faceSelector, factor: { type: 'number', exclusiveMinimum: 0, exclusiveMaximum: 1 } }, required: ['op', 'target', 'faces', 'factor'] },
   { properties: { op: { const: 'delete_faces' }, target, faces: faceSelector }, required: ['op', 'target', 'faces'] },

@@ -9,7 +9,8 @@
   "files": [
     "dist",
     "schemas",
-    "skills",
+    ".agents/skills",
+    "examples",
     "README.md",
     "LICENSE"
   ],
@@ -21,7 +22,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm test && npm run build"
+    "check": "npm run typecheck && npm run build && npm test"
   },
   "dependencies": {
     "ajv": "^8.17.1",
